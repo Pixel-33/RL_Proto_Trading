@@ -22,6 +22,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+import config
 
 import logging
 import tempfile
@@ -66,8 +67,9 @@ class DataSource:
 
     """
 
-    def __init__(self, trading_days=252, ticker='AAPL', normalize=True):
+    def __init__(self, trading_days=252, ticker='ETHUSD', normalize=True):
         self.ticker = ticker
+        self.interval = config.INTERVAL
         self.trading_days = trading_days
         self.normalize = normalize
         self.data = self.load_data()
@@ -81,17 +83,18 @@ class DataSource:
         log.info('loading data for {}...'.format(self.ticker))
         idx = pd.IndexSlice
 
-        print(os.getcwd())
-
         CEDE_TEST = True
-
+        print(os.getcwd())
         if CEDE_TEST:
             # CEDE data from:
             # https://support.kraken.com/hc/en-us/articles/360047124832-Downloadable-historical-OHLCVT-Open-High-Low-Close-Volume-Trades-data
-            df = pd.read_csv('./data/' + 'ETHUSD_60.csv')
-            df.columns = ['time', 'open',  'high', 'low', 'close', 'volume', 'trades']
 
-            df['time'] = pd.to_datetime(df['time'], unit='s')
+            df = pd.read_csv('./data/' + self.ticker + '_' + self.interval + '.csv')
+
+
+            # df.columns = config.DATA_COLUMNS
+            # df['time'] = pd.to_datetime(df['time'], unit='s')
+            log.info('got data for {}...'.format(self.ticker))
 
         else:
             with pd.HDFStore('../data/assets.h5') as store:
@@ -114,7 +117,6 @@ class DataSource:
         # data = get_data(ticker, start_date = startdate, end_date = enddate)
 
         data = df.copy()
-
         for column in data.columns:
             is_in = 0
             for data_column in ['close', 'volume', 'low', 'high']:
@@ -123,7 +125,6 @@ class DataSource:
             if is_in == 0:
                 data = data.drop([column], axis=1)
 
-        # return df
         return data
 
     def preprocess_data(self):

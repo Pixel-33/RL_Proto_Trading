@@ -105,12 +105,12 @@ def run_rl_trading():
     f'Trading costs: {trading_cost_bps:.2%} | Time costs: {time_cost_bps:.2%}'
 
 
-    trading_environment = gym.make('trading-v0', ticker='AAPL')
+    trading_environment = gym.make('trading-v0', ticker=config.CRYPTO)
     # trading_environment = gym.make('trading-v0', ticker='DIS')
     trading_environment.env.trading_days = trading_days
     trading_environment.env.trading_cost_bps = trading_cost_bps
     trading_environment.env.time_cost_bps = time_cost_bps
-    trading_environment.env.ticker = 'AAPL'
+    trading_environment.env.ticker = config.CRYPTO
     # trading_environment.env.ticker = 'DIS'
     trading_environment.seed(42)
 
