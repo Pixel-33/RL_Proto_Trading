@@ -7,7 +7,8 @@ from datetime import timedelta, datetime
 import pandas as pd
 import os, sys
 
-from data_preparation import data_preparation_BTC, data_preparation_ETH
+import config
+import data_preparation
 from q_learning_for_trading import run_rl_trading
 
 def print_hi(name):
@@ -20,8 +21,14 @@ if __name__ == '__main__':
 
     if len(sys.argv) >= 2:
         if len(sys.argv) == 2 and (sys.argv[1] == "--data_prep"):
-            data_preparation_ETH("ETHUSD_1m_brut.csv")
-            data_preparation_BTC("BTCUSD_1m_brut.csv")
+            ds = data_preparation.DataDescription()
+            # DEBUG CEDE
+            # ds.symbols = ["ETH/EURS", "BTC/EURS"]
+            # ds.features = ["open", "high", "low", "close"]
+            data_preparation.record(ds)
+            # data_preparation.get_current_data(ds)
+            # data_preparation.data_preparation_ETH("ETHUSD_1m_brut.csv")
+            # data_preparation.data_preparation_BTC("BTCUSD_1m_brut.csv")
         elif len(sys.argv) == 2 and (sys.argv[1] == "--rl_trading"):
             run_rl_trading()
 
