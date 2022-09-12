@@ -9,5 +9,9 @@ INTERVAL = '1h'
 
 DATA_COLUMNS = ['open',  'high', 'low', 'close', 'volume']
 
+MAX_THREAD = 5
+
+DIR_DATA = "./data/"
+
 FDP_URL='https://fdp-ifxcxetwza-uc.a.run.app/'
 
