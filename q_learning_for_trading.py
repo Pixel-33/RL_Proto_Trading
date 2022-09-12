@@ -58,8 +58,8 @@ from matplotlib.ticker import FuncFormatter
 import seaborn as sns
 
 import tensorflow as tf
-from tensorflow import keras
-from keras.optimizers import Adam
+# from tensorflow import keras
+# from keras.optimizers import Adam
 
 import gym
 from gym.envs.registration import register

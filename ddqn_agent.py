@@ -6,7 +6,7 @@ from random import sample
 
 import tensorflow as tf
 from tensorflow import keras
-from keras.optimizers import Adam
+# from keras.optimizers import Adam
 
 import config
 
