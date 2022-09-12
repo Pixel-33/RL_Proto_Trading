@@ -19,16 +19,16 @@ def print_hi(name):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
-    if len(sys.argv) >= 2:
-        ds = data_preparation.DataDescription()
-        # DEBUG CEDE
-        # ds.symbols = ["ETH/EURS", "BTC/EURS"]
-        # ds.features = ["open", "high", "low", "close"]
-        start_date = "2020-01-01"
-        data_preparation.record(ds, start_date)
-        # data_preparation.get_current_data(ds)
-        for symbol in ds.symbols:
-            run_rl_trading(symbol)
+
+    ds = data_preparation.DataDescription()
+    # DEBUG CEDE
+    # ds.symbols = ["ETH/EURS", "BTC/EURS"]
+    # ds.features = ["open", "high", "low", "close"]
+    start_date = "2020-01-01"
+    data_preparation.record(ds, start_date)
+    # data_preparation.get_current_data(ds)
+    for symbol in ds.symbols:
+        run_rl_trading(symbol)
 
     print_hi('PyCharm')
 
