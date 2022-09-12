@@ -83,29 +83,11 @@ class DataSource:
         log.info('loading data for {}...'.format(self.ticker))
         idx = pd.IndexSlice
 
-        CEDE_TEST = True
-        print(os.getcwd())
-        if CEDE_TEST:
-            # CEDE data from:
-            # https://support.kraken.com/hc/en-us/articles/360047124832-Downloadable-historical-OHLCVT-Open-High-Low-Close-Volume-Trades-data
+        df = pd.read_csv('./data/' + self.ticker.replace('/', '_') + '.csv', index_col=[0])
 
-            df = pd.read_csv('./data/' + self.ticker + '_' + self.interval + '.csv')
-
-
-            # df.columns = config.DATA_COLUMNS
-            # df['time'] = pd.to_datetime(df['time'], unit='s')
-            log.info('got data for {}...'.format(self.ticker))
-
-        else:
-            with pd.HDFStore('../data/assets.h5') as store:
-                df = (store['quandl/wiki/prices']
-                      .loc[idx[:, self.ticker],
-                           ['adj_close', 'adj_volume', 'adj_low', 'adj_high']]
-                      .dropna()
-                      .sort_index())
-
-                df.columns = ['close', 'volume', 'low', 'high']
-                log.info('got data for {}...'.format(self.ticker))
+        # df.columns = config.DATA_COLUMNS
+        # df['time'] = pd.to_datetime(df['time'], unit='s')
+        log.info('got data for {}...'.format(self.ticker))
 
         # startdate = df.index.tolist()[0][0]
         # enddate = df.index.tolist()[len(df) - 1][0]
