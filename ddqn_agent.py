@@ -90,7 +90,10 @@ class DDQNAgent:
         else:
             model = keras.Model(inputs=inputs, outputs=action)
 
-        model.compile(loss='mse', optimizer=Adam(lr=0.001))
+        opt = keras.optimizers.Adam(learning_rate=0.001)
+        model.compile(loss='mse', optimizer=opt)
+        # model.compile(loss='categorical_crossentropy', optimizer=opt)
+        # model.compile(loss='mse', optimizer=Adam(lr=0.001))
 
         model.summary()
         print('output shape:', model.output_shape)
