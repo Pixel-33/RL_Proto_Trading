@@ -44,7 +44,7 @@ def get_current_data(data_description):
 def record(data_description, target="./data/", start_date="2022-06-01"):
     symbols = ','.join(data_description.symbols)
     symbols = symbols.replace('/','_')
-    params = { "service":"history", "exchange":"ftx", "symbol":symbols, "start":start_date, "interval": "1h" }
+    params = { "service":"history", "exchange":"ftx", "symbol":symbols, "start":start_date, "interval": "1d" }
     response_json = utils.fdp_request(params)
     for symbol in data_description.symbols:
         formatted_symbol = symbol.replace('/','_')
