@@ -24,9 +24,10 @@ if __name__ == '__main__':
     # DEBUG CEDE
     # ds.symbols = ["ETH/EURS", "BTC/EURS"]
     # ds.features = ["open", "high", "low", "close"]
-    start_date = "2020-01-01"
+    start_date = '2020-01-01'
+    interval = '1d'
 
-    data_preparation.record(ds, config.DIR_DATA, start_date)
+    data_preparation.record(ds, config.DIR_DATA, start_date, interval)
     # data_preparation.get_current_data(ds)
 
     if len(sys.argv) == 2 and (sys.argv[1] == "--multi_thread"):
@@ -38,11 +39,13 @@ if __name__ == '__main__':
                     executor.submit(
                         run_rl_trading,
                         symbol,
+                        interval,
+                        start_date
                     )
                 )
     else:
         for symbol in ds.symbols:
-            run_rl_trading(symbol)
+            run_rl_trading(symbol, interval, start_date)
 
     print_hi('PyCharm')
 

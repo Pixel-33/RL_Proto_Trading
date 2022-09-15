@@ -41,10 +41,10 @@ def get_current_data(data_description):
     return df_result
 
 
-def record(data_description, target="./data/", start_date="2022-06-01"):
+def record(data_description, target="./data/", start_date="2022-06-01", interval="1h"):
     symbols = ','.join(data_description.symbols)
     symbols = symbols.replace('/','_')
-    params = { "service":"history", "exchange":"ftx", "symbol":symbols, "start":start_date, "interval": "1d" }
+    params = { "service":"history", "exchange":"ftx", "symbol":symbols, "start":start_date, "interval": interval }
     response_json = utils.fdp_request(params)
     for symbol in data_description.symbols:
         formatted_symbol = symbol.replace('/','_')

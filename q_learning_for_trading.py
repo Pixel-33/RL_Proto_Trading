@@ -69,7 +69,7 @@ from ddqn_agent import DDQNAgent
 # ### Settings
 
 # In[5]:
-def run_rl_trading(symbol):
+def run_rl_trading(symbol, interval, start_date):
     symbol = symbol.replace('/', '_')
     np.random.seed(42)
     tf.random.set_seed(42)
@@ -83,7 +83,7 @@ def run_rl_trading(symbol):
     else:
         print('Using CPU')
 
-    results_path = Path('results', 'trading_bot_' + symbol)
+    results_path = Path('results', 'trading_bot_' + symbol + '_' + interval + '_since_' + start_date)
     if not results_path.exists():
         results_path.mkdir(parents=True)
 
