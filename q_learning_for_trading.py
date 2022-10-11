@@ -195,8 +195,8 @@ def run_rl_trading(symbol, interval, start_date, ddqn_backup=False):
     def track_results(episode, nav_ma_100, nav_ma_10,
                       market_nav_100, market_nav_10,
                       win_ratio, total, epsilon):
-        time_ma = np.mean([episode_time[-100:]])
-        T = np.sum(episode_time)
+        # CEDE DEBUG  to be fixed time_ma = np.mean([episode_time[-100:]])
+        # CEDE DEBUG  to be fixed T = np.sum(episode_time)
 
         template = '{:>4d} | {} | Agent: {:>6.1%} ({:>6.1%}) | '
         template += 'Market: {:>6.1%} ({:>6.1%}) | '
