@@ -9,6 +9,8 @@ from tensorflow import keras
 # from keras.optimizers import Adam
 
 import config
+import pickle
+import os
 
 class DDQNAgent:
     def __init__(self, state_dim,
@@ -54,6 +56,19 @@ class DDQNAgent:
         self.losses = []
         self.idx = tf.range(batch_size)
         self.train = True
+
+        self.path_backup = './backup'
+        self.path_backup_target_network = './backup/target_model/'
+        self.path_backup_online_network = './backup/online_model/'
+        if not os.path.exists(self.path_backup):
+            os.makedirs(self.path_backup)
+        if not os.path.exists(self.path_backup_target_network):
+            os.makedirs(self.path_backup_target_network)
+        if not os.path.exists(self.path_backup_online_network):
+            os.makedirs(self.path_backup_online_network)
+
+
+        self.backup_filename = os.path.join(self.path_backup, 'model_backup.pickle')
 
     def build_model(self, trainable=True):
         num_inputs = 10
@@ -198,4 +213,18 @@ class DDQNAgent:
         if self.total_steps % self.tau == 0:
             self.update_target()
 
+    def backup(self):
+        with open(self.backup_filename, 'wb') as file:
+            print("[ddqn::backup]", self.backup_filename)
+            tmp_target_network = self.target_network
+            tmp_online_network = self.online_network
 
+            self.target_network.save('./backup/target_model/')
+            self.online_network.save('./backup/online_model/')
+
+            self.target_network = []
+            self.online_network = []
+            pickle.dump(self, file)
+
+            self.target_network = tmp_target_network
+            self.online_network = tmp_online_network

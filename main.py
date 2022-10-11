@@ -5,12 +5,12 @@
 from datetime import timedelta, datetime
 
 import pandas as pd
-import os, sys
+import os, sys, shutil
 
 import config
 import data_preparation
 import concurrent.futures
-from q_learning_for_trading import run_rl_trading
+import TradingBot
 
 def print_hi(name):
     # Use a breakpoint in the code line below to debug your script.
@@ -20,16 +20,22 @@ def print_hi(name):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
-    ds = data_preparation.DataDescription()
-    # DEBUG CEDE
-    # ds.symbols = ["ETH/EURS", "BTC/EURS"]
-    # ds.features = ["open", "high", "low", "close"]
-    start_date = '2020-01-01'
-    interval = '1d'
+    myBot = TradingBot.TradingBot(config.LST_CRYPTO,
+                                  config.DATA_COLUMNS,
+                                  config.DIR_DATA,
+                                  '2020-01-01',
+                                  '1d')
 
-    data_preparation.record(ds, config.DIR_DATA, start_date, interval)
-    # data_preparation.get_current_data(ds)
+    myBot.TradingBot_record()
+    if len(sys.argv) == 2 and (sys.argv[1] == "--reboot"):
+        myBot.run_rl_trading(True)
+    else:
+        if os.path.exists('./backup'):
+            shutil.rmtree('./backup')
+        myBot.run_rl_trading(False)
 
+
+    '''    
     if len(sys.argv) == 2 and (sys.argv[1] == "--multi_thread"):
         # multithreading
         with concurrent.futures.ThreadPoolExecutor(max_workers=config.MAX_THREAD) as executor:
@@ -46,6 +52,7 @@ if __name__ == '__main__':
     else:
         for symbol in ds.symbols:
             run_rl_trading(symbol, interval, start_date)
+    '''
 
     print_hi('PyCharm')
 

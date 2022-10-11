@@ -7,11 +7,9 @@ default_features = ["open", "close", "high", "low", "volume"]
 
 
 class DataDescription():
-    def __init__(self):
-        # self.symbols = default_symbols
-        self.symbols = config.LST_CRYPTO
-        # self.features = default_features
-        self.features = config.DATA_COLUMNS
+    def __init__(self, lst_symbols, lst_features):
+        self.symbols = lst_symbols
+        self.features = lst_features
 
 
 def get_current_data(data_description):

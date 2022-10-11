@@ -41,6 +41,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import warnings
 warnings.filterwarnings('ignore')
 
+import pickle
 import config
 
 
@@ -58,7 +59,7 @@ from matplotlib.ticker import FuncFormatter
 import seaborn as sns
 
 import tensorflow as tf
-# from tensorflow import keras
+from tensorflow import keras
 # from keras.optimizers import Adam
 
 import gym
@@ -66,10 +67,21 @@ from gym.envs.registration import register
 
 from ddqn_agent import DDQNAgent
 
+from tensorflow import keras
+
 # ### Settings
 
+def load_model_from_pickle(picklefilename):
+    with open(picklefilename, 'rb') as file:
+        model = pickle.load(file)
+
+    model.target_network = keras.models.load_model('./backup/target_model/')
+    model.online_network = keras.models.load_model('./backup/online_model/')
+
+    return model
+
 # In[5]:
-def run_rl_trading(symbol, interval, start_date):
+def run_rl_trading(symbol, interval, start_date, ddqn_backup=False):
     symbol = symbol.replace('/', '_')
     np.random.seed(42)
     tf.random.set_seed(42)
@@ -105,7 +117,6 @@ def run_rl_trading(symbol, interval, start_date):
 
     f'Trading costs: {trading_cost_bps:.2%} | Time costs: {time_cost_bps:.2%}'
 
-
     trading_environment = gym.make('trading-v0', ticker=symbol)
     # trading_environment = gym.make('trading-v0', ticker='DIS')
     trading_environment.env.trading_days = trading_days
@@ -123,17 +134,14 @@ def run_rl_trading(symbol, interval, start_date):
     gamma = .99,  # discount factor
     tau = 100  # target network update frequency
 
-
     # ### NN Architecture
     architecture = (256, 256)  # units per layer
     learning_rate = 0.0001  # learning rate
     l2_reg = 1e-6  # L2 regularization
 
-
     # ### Experience Replay
     replay_capacity = int(1e6)
     batch_size = 4096
-
 
     # ### $\epsilon$-greedy Policy
     epsilon_start = 1.0
@@ -141,30 +149,47 @@ def run_rl_trading(symbol, interval, start_date):
     epsilon_decay_steps = 250
     epsilon_exponential_decay = .99
 
-
     # ## Create DDQN Agent
     tf.keras.backend.clear_session()
 
-    ddqn = DDQNAgent(state_dim=state_dim,
-                     num_actions=num_actions,
-                     learning_rate=learning_rate,
-                     gamma=gamma,
-                     epsilon_start=epsilon_start,
-                     epsilon_end=epsilon_end,
-                     epsilon_decay_steps=epsilon_decay_steps,
-                     epsilon_exponential_decay=epsilon_exponential_decay,
-                     replay_capacity=replay_capacity,
-                     architecture=architecture,
-                     l2_reg=l2_reg,
-                     tau=tau,
-                     batch_size=batch_size)
+    if ddqn_backup:
+        ddqn = load_model_from_pickle('./backup/model_backup.pickle')
+
+        # episode_time = df_tracking['episode_time'].tolist()
+        # episode_eps = df_tracking['episode_eps'].tolist()
+
+        print(os.getcwd())
+
+        df_episode = pd.read_csv('./backup/' + 'episode.csv')
+        start_episode = df_episode['episode'].iloc[-1]
+        navs = df_episode['navs'].tolist()
+        market_navs = df_episode['market_navs'].tolist()
+        diffs = df_episode['diffs'].tolist()
+
+    else:
+        ddqn = DDQNAgent(state_dim=state_dim,
+                         num_actions=num_actions,
+                         learning_rate=learning_rate,
+                         gamma=gamma,
+                         epsilon_start=epsilon_start,
+                         epsilon_end=epsilon_end,
+                         epsilon_decay_steps=epsilon_decay_steps,
+                         epsilon_exponential_decay=epsilon_exponential_decay,
+                         replay_capacity=replay_capacity,
+                         architecture=architecture,
+                         l2_reg=l2_reg,
+                         tau=tau,
+                         batch_size=batch_size)
+        df_episode = pd.DataFrame(columns=['episode'])
+        start_episode = 1
+
+
+        episode_time, navs, market_navs, diffs, episode_eps = [], [], [], [], []
 
     ddqn.online_network.summary()
 
     total_steps = 0
     max_episodes = 1000
-
-    episode_time, navs, market_navs, diffs, episode_eps = [], [], [], [], []
 
     # ## Visualization
     def track_results(episode, nav_ma_100, nav_ma_10,
@@ -185,7 +210,7 @@ def run_rl_trading(symbol, interval, start_date):
     # ## Train Agent
     start = time()
     results = []
-    for episode in range(1, max_episodes + 1):
+    for episode in range(int(start_episode), max_episodes + 1):
         this_state = trading_environment.reset()
         for episode_step in range(max_episode_steps):
             action = ddqn.epsilon_greedy_policy(this_state.reshape(-1, state_dim))
@@ -231,6 +256,15 @@ def run_rl_trading(symbol, interval, start_date):
                           # share of agent wins, defined as higher ending nav
                           np.sum([s > 0 for s in diffs[-100:]])/min(len(diffs), 100),
                           time() - start, ddqn.epsilon)
+
+            ddqn.backup()
+            index = len(df_episode)
+            df_episode.loc[index, 'episode'] = episode
+            df_episode.loc[index, 'navs'] = nav
+            df_episode.loc[index, 'market_navs'] = market_nav
+            df_episode.loc[index, 'diffs'] = diff
+            df_episode.to_csv('./backup/episode.csv')
+
         if len(diffs) > 25 and all([r > 0 for r in diffs[-25:]]):
             print(result.tail())
             break
