@@ -13,5 +13,5 @@ MAX_THREAD = 5
 
 DIR_DATA = "./data/"
 
-FDP_URL='https://fdp-ifxcxetwza-uc.a.run.app/'
+FDP_URL = 'https://fdp-ifxcxetwza-uc.a.run.app/'
 
