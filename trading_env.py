@@ -144,7 +144,7 @@ class DataSource:
         high = len(self.current_features.index) - self.trading_days
         self.offset = np.random.randint(low=0, high=high)
         self.step = 0
-        print("OFFSET: ", self.offset, " ##################################")
+        # print("OFFSET: ", self.offset, " ##################################")
 
     def take_step(self):
         """Returns data for current trading day and done signal (signal de fin d'épisode)"""

@@ -209,13 +209,13 @@ def run_rl_trading(lst_symbols, start_date, interval, ddqn_backup=False):
                                      next_state,
                                      0.0 if done else 1.0)
             if ddqn.train:
-                print("épisode: ", episode, " ---- step n° ", episode_step)     # JER
+                # print("épisode: ", episode, " ---- step n° ", episode_step)     # JER
                 ddqn.experience_replay()
             if done:
                 break
             this_state = next_state
 
-        # get DataFrame with seqence of actions, returns and nav values
+        # get DataFrame with sequence of actions, returns and nav values
         result = trading_environment.env.simulator.result()
 
         # get results of last step
@@ -258,19 +258,19 @@ def run_rl_trading(lst_symbols, start_date, interval, ddqn_backup=False):
             print(result.tail())
             break
 
-        trading_environment.close()
+    trading_environment.close()
 
-        # Store Results
-        results = pd.DataFrame({'Episode': list(range(1, episode + 1)),
-                                'Agent': navs,
-                                'Market': market_navs,
-                                'Difference': diffs})
-        results.set_index('Episode')
+    # Store Results
+    results = pd.DataFrame({'Episode': list(range(1, episode + 1)),
+                            'Agent': navs,
+                            'Market': market_navs,
+                            'Difference': diffs})
+    results.set_index('Episode')
 
-        results['Strategy Wins (%)'] = (results.Difference > 0).rolling(100).sum()
-        results.info()
+    results['Strategy Wins (%)'] = (results.Difference > 0).rolling(100).sum()
+    results.info()
 
-        results.to_csv(results_path / 'results.csv', index=False)
+    results.to_csv(results_path / 'results.csv', index=False)
 
     with sns.axes_style('white'):
         sns.distplot(results.Difference)
