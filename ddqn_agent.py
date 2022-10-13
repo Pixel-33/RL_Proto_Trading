@@ -12,6 +12,7 @@ import config
 import pickle
 import os
 
+
 class DDQNAgent:
     def __init__(self, state_dim,
                  num_actions,

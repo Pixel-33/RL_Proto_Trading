@@ -22,13 +22,9 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
+
 import config
-
 import logging
-import tempfile
-
-import os
-
 import gym
 import numpy as np
 import pandas as pd
@@ -36,13 +32,9 @@ from gym import spaces
 from gym.utils import seeding
 from sklearn.preprocessing import scale
 import talib
-
-from datetime import datetime
-
-import yfinance as yf
+from datetime import datetime   # pour vérifier les timestamps (optionnel)
 # from yahoo_fin.stock_info import *
 
-import datetime
 
 logging.basicConfig()
 log = logging.getLogger(__name__)
@@ -53,41 +45,39 @@ log.info('%s logger started.', __name__)
 class DataSource:
     """
     Data source for TradingEnvironment
-
     Loads & preprocesses daily price & volume data
     Provides data for each new episode.
-    Stocks with longest history:
-
-    ticker  # obs
-    KO      14155
-    GE      14155
-    BA      14155
-    CAT     14155
-    DIS     14155
-
     """
 
-    def __init__(self, trading_days=252, ticker='ETHUSD', normalize=True):
-        self.ticker = ticker
+    def __init__(self, trading_days, lst_ticker, normalize=True):
+        self.lst_ticker = lst_ticker
         self.interval = config.INTERVAL
         self.trading_days = trading_days
         self.normalize = normalize
-        self.data = self.load_data()
-        self.preprocess_data()
-        self.min_values = self.data.min()
-        self.max_values = self.data.max()
+        self.lst_df_data = self.load_lst_data()
+        self.lst_df_features = self.preprocess_lst_features()
+        self.min_values = self.calcul_min_value()
+        self.max_values = self.calcul_max_value()
+        self.compteur = 0
+        self.current_features = None
         self.step = 0
         self.offset = None
 
-    def load_data(self):
-        log.info('loading data for {}...'.format(self.ticker))
-        idx = pd.IndexSlice
+    def load_lst_data(self):
+        lst = []
+        for ticker in self.lst_ticker:
+            lst.append(self.load_data(ticker))
+        return lst
 
-        df = pd.read_csv('./data/' + self.ticker.replace('/', '_') + '.csv', index_col=[0])
+    def load_data(self, ticker):
+        log.info('loading data for {}...'.format(ticker))
+        # idx = pd.IndexSlice
+
+        df = pd.read_csv('./data/' + ticker + '.csv', index_col=[0])
 
         # df.columns = config.DATA_COLUMNS
         # df['time'] = pd.to_datetime(df['time'], unit='s')
-        log.info('got data for {}...'.format(self.ticker))
+        log.info('got data for {}...'.format(ticker))
 
         # startdate = df.index.tolist()[0][0]
         # enddate = df.index.tolist()[len(df) - 1][0]
@@ -109,48 +99,75 @@ class DataSource:
 
         return data
 
-    def preprocess_data(self):
+    def preprocess_lst_features(self):
+        lst = []
+        for df_data in self.lst_df_data:
+            lst.append(self.preprocess_data(df_data))
+        return lst
+
+    def preprocess_data(self, df_data):
         """calculate returns and percentiles, then removes missing values"""
 
-        self.data['returns'] = self.data.close.pct_change()
-        self.data['ret_2'] = self.data.close.pct_change(2)
-        self.data['ret_5'] = self.data.close.pct_change(5)
-        self.data['ret_10'] = self.data.close.pct_change(10)
-        self.data['ret_21'] = self.data.close.pct_change(21)
-        self.data['rsi'] = talib.STOCHRSI(self.data.close)[1]
-        self.data['macd'] = talib.MACD(self.data.close)[1]
-        self.data['atr'] = talib.ATR(self.data.high, self.data.low, self.data.close)
+        df_data['returns'] = df_data.close.pct_change()
+        df_data['ret_2'] = df_data.close.pct_change(2)
+        df_data['ret_5'] = df_data.close.pct_change(5)
+        df_data['ret_10'] = df_data.close.pct_change(10)
+        df_data['ret_21'] = df_data.close.pct_change(21)
+        df_data['rsi'] = talib.STOCHRSI(df_data.close)[1]
+        df_data['macd'] = talib.MACD(df_data.close)[1]
+        df_data['atr'] = talib.ATR(df_data.high, df_data.low, df_data.close)
 
-        slowk, slowd = talib.STOCH(self.data.high, self.data.low, self.data.close)
-        self.data['stoch'] = slowd - slowk
-        self.data['atr'] = talib.ATR(self.data.high, self.data.low, self.data.close)
-        self.data['ultosc'] = talib.ULTOSC(self.data.high, self.data.low, self.data.close)
-        self.data = (self.data.replace((np.inf, -np.inf), np.nan)
-                     .drop(['high', 'low', 'close', 'volume'], axis=1)
-                     .dropna())
+        slowk, slowd = talib.STOCH(df_data.high, df_data.low, df_data.close)
+        df_data['stoch'] = slowd - slowk
+        df_data['atr'] = talib.ATR(df_data.high, df_data.low, df_data.close)
+        df_data['ultosc'] = talib.ULTOSC(df_data.high, df_data.low, df_data.close)
+        df_data = (df_data.replace((np.inf, -np.inf), np.nan).drop(['high', 'low', 'close', 'volume'], axis=1).dropna())
 
-        r = self.data.returns.copy()
+        r = df_data.returns.copy()
         if self.normalize:
-            self.data = pd.DataFrame(scale(self.data),
-                                     columns=self.data.columns,
-                                     index=self.data.index)
-        features = self.data.columns.drop('returns')
-        self.data['returns'] = r  # don't scale returns
-        self.data = self.data.loc[:, ['returns'] + list(features)]
-        log.info(self.data.info())
+            df_data = pd.DataFrame(scale(df_data),
+                                   columns=df_data.columns,
+                                   index=df_data.index)
+        features = df_data.columns.drop('returns')
+        df_data['returns'] = r  # don't scale returns
+        df_data = df_data.loc[:, ['returns'] + list(features)]
+        print("Features ", df_data.shape, " !!!!!!!!!!")
+        log.info(df_data.info())
+        return df_data
 
     def reset(self):
+        self.compteur = self.compteur % len(self.lst_df_features)
+        self.current_features = self.lst_df_features[self.compteur].copy()
+        self.compteur += 1
+
         """Provides starting index for time series and resets step"""
-        high = len(self.data.index) - self.trading_days
+        high = len(self.current_features.index) - self.trading_days
         self.offset = np.random.randint(low=0, high=high)
         self.step = 0
+        print("OFFSET: ", self.offset, " ##################################")
 
     def take_step(self):
-        """Returns data for current trading day and done signal"""
-        obs = self.data.iloc[self.offset + self.step].values
+        """Returns data for current trading day and done signal (signal de fin d'épisode)"""
+        obs = self.current_features.iloc[self.offset + self.step].values
         self.step += 1
-        done = self.step > self.trading_days
+        done = self.step > self.trading_days     # booléen pour savoir quand fin de l'épisode
         return obs, done
+
+    def calcul_min_value(self):
+        lst_min = []
+        for df_features in self.lst_df_features:
+            min_value = df_features.min()
+            lst_min.append(min_value)
+        df_min = pd.DataFrame(lst_min)
+        return df_min.min()
+
+    def calcul_max_value(self):
+        lst_max = []
+        for df_features in self.lst_df_features:
+            max_value = df_features.max()
+            lst_max.append(max_value)
+        df_max = pd.DataFrame(lst_max)
+        return df_max.max()
 
 
 class TradingSimulator:
@@ -215,9 +232,7 @@ class TradingSimulator:
             self.navs[self.step] = start_nav * (1 + self.strategy_returns[self.step])
             self.market_navs[self.step] = start_market_nav * (1 + self.market_returns[self.step])
 
-        info = {'reward': reward,
-                'nav'   : self.navs[self.step],
-                'costs' : self.costs[self.step]}
+        info = {'reward': reward, 'nav': self.navs[self.step], 'costs': self.costs[self.step]}
 
         self.step += 1
         return reward, info
@@ -256,21 +271,19 @@ class TradingEnvironment(gym.Env):
     """
     metadata = {'render.modes': ['human']}
 
-    def __init__(self,
-                 trading_days=252,
-                 trading_cost_bps=1e-3,
-                 time_cost_bps=1e-4,
-                 ticker='AAPL'):
+    def __init__(self, trading_days, trading_cost_bps, time_cost_bps, lst_ticker):
         self.trading_days = trading_days
         self.trading_cost_bps = trading_cost_bps
-        self.ticker = ticker
         self.time_cost_bps = time_cost_bps
-        self.data_source = DataSource(trading_days=self.trading_days,
-                                      ticker=ticker)
+        self.lst_ticker = lst_ticker
+
+        self.data_source = DataSource(trading_days=self.trading_days, lst_ticker=self.lst_ticker)
         self.simulator = TradingSimulator(steps=self.trading_days,
                                           trading_cost_bps=self.trading_cost_bps,
                                           time_cost_bps=self.time_cost_bps)
+        # define type and shape of our action_space
         self.action_space = spaces.Discrete(3)
+        # define the observation_space, which contains all the environment’s data to be observed by the agent
         self.observation_space = spaces.Box(min(self.data_source.min_values), max(self.data_source.max_values))
         self.reset()
 
@@ -278,6 +291,8 @@ class TradingEnvironment(gym.Env):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
 
+    # define one step through the environment. At each step we will take the specified action (chosen by our model),
+    # calculate the reward, and return the next observation.
     def step(self, action):
         """Returns state observation, reward, done and info"""
         assert self.action_space.contains(action), '{} {} invalid'.format(action, type(action))
@@ -292,7 +307,7 @@ class TradingEnvironment(gym.Env):
         self.simulator.reset()
         return self.data_source.take_step()[0]
 
-    # TODO
+    # The render method may be called periodically to print a rendition of the environment
     def render(self, mode='human'):
         """Not implemented"""
         pass

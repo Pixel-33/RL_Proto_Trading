@@ -65,9 +65,9 @@ def fdp_request(params, multithreading = True):
                 current_symbol = futures[future]
                 res = future.result()
                 final_result["result"][current_symbol] = res["result"][current_symbol]
-        
 
     return final_result
+
 
 def fdp_request_post(url, params):
     load_dotenv()
@@ -76,6 +76,7 @@ def fdp_request_post(url, params):
     request = urllib.request.Request(fdp_url+'/'+url, urllib.parse.urlencode(params).encode())
     response = urllib.request.urlopen(request).read().decode()
     return json.loads(response)
+
 
 def normalize(df):
     result = df.copy()
@@ -86,3 +87,7 @@ def normalize(df):
         result[feature_name] = result[feature_name] - result[feature_name][0]
     return result
 
+
+def concat_str_symbols(lst_symbols):
+    str_symbols = '+'.join(lst_symbols)
+    return str_symbols

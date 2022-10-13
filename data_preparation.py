@@ -6,7 +6,7 @@ import utils
 default_features = ["open", "close", "high", "low", "volume"]
 
 
-class DataDescription():
+class DataDescription:
     def __init__(self, lst_symbols, lst_features):
         self.symbols = lst_symbols
         self.features = lst_features
@@ -39,18 +39,26 @@ def get_current_data(data_description):
     return df_result
 
 
-def record(data_description, target="./data/", start_date="2022-06-01", interval="1h"):
-    symbols = ','.join(data_description.symbols)
-    symbols = symbols.replace('/','_')
-    params = { "service":"history", "exchange":"ftx", "symbol":symbols, "start":start_date, "interval": interval }
+def record(ds, dir_data, start_date, interval):
+    str_symbols = ','.join(ds.symbols)
+    params = {"service": "history", "exchange": "ftx", "symbol": str_symbols, "start": start_date, "interval": interval}
     response_json = utils.fdp_request(params)
-    for symbol in data_description.symbols:
-        formatted_symbol = symbol.replace('/','_')
-        if response_json["result"][formatted_symbol]["status"] == "ko":
-            print("no data for ",symbol)
+    for symbol in ds.symbols:
+        if response_json["result"][symbol]["status"] == "ko":
+            print("no data for ", symbol)
             continue
-        df = pd.read_json(response_json["result"][formatted_symbol]["info"])
-        # df = features.add_features(df, data_description.features)
-        if not os.path.exists(target):
-            os.makedirs(target)
-        df.to_csv(target+'/'+formatted_symbol+".csv")
+        df = pd.read_json(response_json["result"][symbol]["info"])
+
+        # pour vérifier les dates au format datetime de pandas
+        df['index'] = pd.to_datetime(df.index, unit='h', origin=pd.Timestamp(start_date))
+        df.dropna(inplace=True)
+        df.reset_index(drop=True, inplace=True)
+
+        # pour déterminer si besoin, le nombre de lignes à garder dans nos data renvoyés par ftx
+        # df = df.iloc[:2100, :]
+
+        if not os.path.exists(dir_data):
+            os.makedirs(dir_data)
+
+        df.to_csv(dir_data + symbol + ".csv")
+

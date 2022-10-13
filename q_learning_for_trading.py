@@ -1,3 +1,4 @@
+"""
 #!/usr/bin/env python
 # coding: utf-8
 
@@ -29,47 +30,32 @@
 # The environment accounts for trading cost, which is set to 10bps by default. It also deducts a 1bps time cost per period. It tracks the net asset value (NAV) of the agent's portfolio and compares it against the market portfolio (which trades frictionless to raise the bar for the agent).
 
 # We use the same DDQN agent and neural network architecture that successfully learned to navigate the Lunar Lander environment. We let exploration continue for 500,000 time steps (~2,000 1yr trading periods) with linear decay of ε to 0.1 and exponential decay at a factor of 0.9999 thereafter.
+"""
 
-# ## Imports & Settings
-
-# ### Imports
-
-# In[3]:
 import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-
 import warnings
-warnings.filterwarnings('ignore')
-
 import pickle
-import config
-
-
-# get_ipython().run_line_magic('matplotlib', 'inline')
-from pathlib import Path
-from time import time
-from collections import deque
-from random import sample
-
 import numpy as np
 import pandas as pd
-
 import matplotlib.pyplot as plt
-from matplotlib.ticker import FuncFormatter
 import seaborn as sns
-
 import tensorflow as tf
-from tensorflow import keras
-# from keras.optimizers import Adam
-
 import gym
+
+import config
+import utils
 from gym.envs.registration import register
-
+from pathlib import Path
+from time import time
+from random import randint
 from ddqn_agent import DDQNAgent
-
+from matplotlib.ticker import FuncFormatter
 from tensorflow import keras
 
-# ### Settings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+warnings.filterwarnings('ignore')
+# get_ipython().run_line_magic('matplotlib', 'inline')
+
 
 def load_model_from_pickle(picklefilename):
     with open(picklefilename, 'rb') as file:
@@ -80,9 +66,8 @@ def load_model_from_pickle(picklefilename):
 
     return model
 
-# In[5]:
-def run_rl_trading(symbol, interval, start_date, ddqn_backup=False):
-    symbol = symbol.replace('/', '_')
+
+def run_rl_trading(lst_symbols, start_date, interval, ddqn_backup=False):
     np.random.seed(42)
     tf.random.set_seed(42)
 
@@ -95,7 +80,12 @@ def run_rl_trading(symbol, interval, start_date, ddqn_backup=False):
     else:
         print('Using CPU')
 
-    results_path = Path('results', 'trading_bot_' + symbol + '_' + interval + '_since_' + start_date)
+    if len(lst_symbols) > 1:
+        str_symbols = utils.concat_str_symbols(lst_symbols)
+    else:
+        str_symbols = lst_symbols[0]
+
+    results_path = Path('results', 'trading_bot_' + str_symbols + '_' + interval + '_since_' + start_date)
     if not results_path.exists():
         results_path.mkdir(parents=True)
 
@@ -104,26 +94,25 @@ def run_rl_trading(symbol, interval, start_date, ddqn_backup=False):
         h, m = divmod(m_, 60)
         return '{:02.0f}:{:02.0f}:{:02.0f}'.format(h, m, s)
 
-    trading_days = 252
+    trading_days = config.TRADING_DAYS
+    trading_cost_bps = config.TRADING_COST_BPS
+    time_cost_bps = config.TIME_COST_BPS
 
     register(
         id='trading-v0',
         entry_point='trading_env:TradingEnvironment',
-        max_episode_steps=trading_days
+        max_episode_steps=trading_days,
+        kwargs={'trading_days': trading_days, 'trading_cost_bps': trading_cost_bps, 'time_cost_bps': time_cost_bps}
     )
-
-    trading_cost_bps = 1e-3
-    time_cost_bps = 1e-4
 
     f'Trading costs: {trading_cost_bps:.2%} | Time costs: {time_cost_bps:.2%}'
 
-    trading_environment = gym.make('trading-v0', ticker=symbol)
+    trading_environment = gym.make('trading-v0', lst_ticker=lst_symbols)
     # trading_environment = gym.make('trading-v0', ticker='DIS')
     trading_environment.env.trading_days = trading_days
     trading_environment.env.trading_cost_bps = trading_cost_bps
     trading_environment.env.time_cost_bps = time_cost_bps
-    trading_environment.env.ticker = symbol
-    # trading_environment.env.ticker = 'DIS'
+    trading_environment.env.ticker = lst_symbols
     trading_environment.seed(42)
 
     state_dim = trading_environment.observation_space.shape[0]
@@ -159,9 +148,9 @@ def run_rl_trading(symbol, interval, start_date, ddqn_backup=False):
         # episode_eps = df_tracking['episode_eps'].tolist()
 
         print(os.getcwd())
-
+        np.random.seed(randint(1, 100))
         df_episode = pd.read_csv('./backup/' + 'episode.csv')
-        start_episode = df_episode['episode'].iloc[-1]
+        start_episode = df_episode['episode'].iloc[-1] + 1
         navs = df_episode['navs'].tolist()
         market_navs = df_episode['market_navs'].tolist()
         diffs = df_episode['diffs'].tolist()
@@ -180,19 +169,18 @@ def run_rl_trading(symbol, interval, start_date, ddqn_backup=False):
                          l2_reg=l2_reg,
                          tau=tau,
                          batch_size=batch_size)
+
         df_episode = pd.DataFrame(columns=['episode'])
         start_episode = 1
-
-
         episode_time, navs, market_navs, diffs, episode_eps = [], [], [], [], []
 
     ddqn.online_network.summary()
 
-    total_steps = 0
-    max_episodes = 1000
+    # total_steps = 0
+    max_episodes = config.MAX_EPISODES
 
-    # ## Visualization
-    def track_results(episode, nav_ma_100, nav_ma_10,
+    # Visualization
+    def track_results(episod, nav_ma_100, nav_ma_10,
                       market_nav_100, market_nav_10,
                       win_ratio, total, epsilon):
         # CEDE DEBUG  to be fixed time_ma = np.mean([episode_time[-100:]])
@@ -201,13 +189,12 @@ def run_rl_trading(symbol, interval, start_date, ddqn_backup=False):
         template = '{:>4d} | {} | Agent: {:>6.1%} ({:>6.1%}) | '
         template += 'Market: {:>6.1%} ({:>6.1%}) | '
         template += 'Wins: {:>5.1%} | eps: {:>6.3f}'
-        print(template.format(episode, format_time(total),
+        print(template.format(episod, format_time(total),
                               nav_ma_100-1, nav_ma_10-1,
                               market_nav_100-1, market_nav_10-1,
                               win_ratio, epsilon))
 
-
-    # ## Train Agent
+    # Train Agent
     start = time()
     results = []
     for episode in range(int(start_episode), max_episodes + 1):
@@ -222,7 +209,7 @@ def run_rl_trading(symbol, interval, start_date, ddqn_backup=False):
                                      next_state,
                                      0.0 if done else 1.0)
             if ddqn.train:
-                # print("episode: ",episode ," - episode_step: ", episode_step)
+                print("épisode: ", episode, " ---- step n° ", episode_step)     # JER
                 ddqn.experience_replay()
             if done:
                 break
@@ -246,6 +233,12 @@ def run_rl_trading(symbol, interval, start_date, ddqn_backup=False):
         diff = nav - market_nav
         diffs.append(diff)
 
+        index = len(df_episode)
+        df_episode.loc[index, 'episode'] = episode
+        df_episode.loc[index, 'navs'] = nav
+        df_episode.loc[index, 'market_navs'] = market_nav
+        df_episode.loc[index, 'diffs'] = diff
+
         if episode % 10 == 0:
             track_results(episode,
                           # show mov. average results for 100 (10) periods
@@ -258,57 +251,46 @@ def run_rl_trading(symbol, interval, start_date, ddqn_backup=False):
                           time() - start, ddqn.epsilon)
 
             ddqn.backup()
-            index = len(df_episode)
-            df_episode.loc[index, 'episode'] = episode
-            df_episode.loc[index, 'navs'] = nav
-            df_episode.loc[index, 'market_navs'] = market_nav
-            df_episode.loc[index, 'diffs'] = diff
+
             df_episode.to_csv('./backup/episode.csv')
 
         if len(diffs) > 25 and all([r > 0 for r in diffs[-25:]]):
             print(result.tail())
             break
 
-    trading_environment.close()
+        trading_environment.close()
 
-    # ### Store Results
-    results = pd.DataFrame({'Episode': list(range(1, episode+1)),
-                            'Agent': navs,
-                            'Market': market_navs,
-                            'Difference': diffs}).set_index('Episode')
+        # Store Results
+        results = pd.DataFrame({'Episode': list(range(1, episode + 1)),
+                                'Agent': navs,
+                                'Market': market_navs,
+                                'Difference': diffs})
+        results.set_index('Episode')
 
-    results['Strategy Wins (%)'] = (results.Difference > 0).rolling(100).sum()
-    results.info()
+        results['Strategy Wins (%)'] = (results.Difference > 0).rolling(100).sum()
+        results.info()
 
-    results.to_csv(results_path / 'results.csv', index=False)
+        results.to_csv(results_path / 'results.csv', index=False)
 
     with sns.axes_style('white'):
         sns.distplot(results.Difference)
         sns.despine()
 
-
-    # ### Evaluate Results
+    # Evaluate Results
     results.info()
 
     fig, axes = plt.subplots(ncols=2, figsize=(14, 4), sharey=True)
+    fig.suptitle('Trading_bot_' + str_symbols + '_' + interval + '_since_' + start_date)
 
-    df1 = (results[['Agent', 'Market']]
-           .sub(1)
-           .rolling(100)
-           .mean())
-    df1.plot(ax=axes[0],
-             title='Annual Returns (Moving Average)',
-             lw=1)
+    df1 = (results[['Agent', 'Market']].sub(1).rolling(100).mean())
+    df1.plot(ax=axes[0], title='Annual Returns (Moving Average)', lw=1)
 
     df2 = results['Strategy Wins (%)'].div(100).rolling(50).mean()
-    df2.plot(ax=axes[1],
-             title='Agent Outperformance (%, Moving Average)')
+    df2.plot(ax=axes[1], title='Agent Outperformance (%, Moving Average)')
 
     for ax in axes:
-        ax.yaxis.set_major_formatter(
-            FuncFormatter(lambda y, _: '{:.0%}'.format(y)))
-        ax.xaxis.set_major_formatter(
-            FuncFormatter(lambda x, _: '{:,.0f}'.format(x)))
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0%}'.format(y)))
+        ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: '{:,.0f}'.format(x)))
     axes[1].axhline(.5, ls='--', c='k', lw=1)
 
     sns.despine()

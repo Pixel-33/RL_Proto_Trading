@@ -4,13 +4,12 @@
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
 from datetime import timedelta, datetime
 
-import pandas as pd
-import os, sys, shutil
-
+import os
+import sys
+import shutil
 import config
-import data_preparation
-import concurrent.futures
-import TradingBot
+import tradingBot
+
 
 def print_hi(name):
     # Use a breakpoint in the code line below to debug your script.
@@ -20,20 +19,23 @@ def print_hi(name):
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
 
-    myBot = TradingBot.TradingBot(config.LST_CRYPTO,
-                                  config.DATA_COLUMNS,
-                                  config.DIR_DATA,
-                                  '2020-01-01',
-                                  '1d')
+    lst_symbols = config.LST_CRYPTO
+    lst_features = config.DATA_COLUMNS
+    start_date = config.START_DATE
+    interval = config.INTERVAL
+    dir_data = config.DIR_DATA
 
-    myBot.TradingBot_record()
+    myBot = tradingBot.TradingBot(lst_symbols, lst_features, start_date, interval, dir_data)
+
+    # Récupération des data => .csv
+    myBot.tradingBot_record()
+
     if len(sys.argv) == 2 and (sys.argv[1] == "--reboot"):
         myBot.run_rl_trading(True)
     else:
         if os.path.exists('./backup'):
             shutil.rmtree('./backup')
         myBot.run_rl_trading(False)
-
 
     '''    
     if len(sys.argv) == 2 and (sys.argv[1] == "--multi_thread"):
@@ -56,5 +58,4 @@ if __name__ == '__main__':
 
     print_hi('PyCharm')
 
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
 
