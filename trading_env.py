@@ -100,9 +100,9 @@ class DataSource:
         # HEURE #####################
         if config.INTERVAL == '1h':
             # Calcul high_day, low_day, close_day
-            data['high_day'] = data.high.rolling(24).max()
-            data['low_day'] = data.low.rolling(24).min()
-            data['close_day'] = data['close'].shift(periods=23)
+            data['high'] = data.high.rolling(24).max()
+            data['low'] = data.low.rolling(24).min()
+            # data['close_day'] = data['close'].shift(periods=23)
 
         return data
 
@@ -121,16 +121,33 @@ class DataSource:
         df_data['ret_10'] = df_data.close.pct_change(10)    # (10)
         df_data['ret_21'] = df_data.close.pct_change(21)    # (21)
 
-        df_data['rsi'] = talib.STOCHRSI(df_data.close_day)[1]
-        df_data['macd'] = talib.MACD(df_data.close_day)[1]
-        df_data['atr'] = talib.ATR(df_data.high_day, df_data.low_day, df_data.close_day)
+        # HEURE #####################
+        if config.INTERVAL == '1h':
+            df_result = pd.DataFrame()
+            for index_modulo in range(0, 24):
+                df_tmp = df_data.copy()
+                df_tmp = df_tmp.loc[df_tmp.index % 24 == index_modulo]
+                df_tmp['rsi'] = talib.STOCHRSI(df_tmp.close)[1]
+                df_tmp['macd'] = talib.MACD(df_data.close)[1]
+                df_tmp['atr'] = talib.ATR(df_tmp.high, df_tmp.low, df_tmp.close)
+                slowk, slowd = talib.STOCH(df_tmp.high, df_tmp.low, df_tmp.close)
+                df_tmp['stoch'] = slowd - slowk
+                df_tmp['ultosc'] = talib.ULTOSC(df_data.high, df_data.low, df_data.close)
+                df_result = pd.concat([df_result, df_tmp])
+            df_result.sort_index(inplace=True)
+            df_data = df_result.copy()
+        else:
+            df_data['rsi'] = talib.STOCHRSI(df_data.close_day)[1]
+            df_data['macd'] = talib.MACD(df_data.close_day)[1]
+            df_data['atr'] = talib.ATR(df_data.high_day, df_data.low_day, df_data.close_day)
 
-        slowk, slowd = talib.STOCH(df_data.high_day, df_data.low_day, df_data.close_day)
-        df_data['stoch'] = slowd - slowk
-        # df_data['atr'] = talib.ATR(df_data.high, df_data.low, df_data.close)
-        df_data['ultosc'] = talib.ULTOSC(df_data.high_day, df_data.low_day, df_data.close_day)
+            slowk, slowd = talib.STOCH(df_data.high_day, df_data.low_day, df_data.close_day)
+            df_data['stoch'] = slowd - slowk
+            # df_data['atr'] = talib.ATR(df_data.high, df_data.low, df_data.close)
+            df_data['ultosc'] = talib.ULTOSC(df_data.high_day, df_data.low_day, df_data.close_day)
+
         df_data = (df_data.replace((np.inf, -np.inf), np.nan)
-                   .drop(['high', 'low', 'close', 'high_day', 'low_day', 'close_day'], axis=1).dropna())   # , 'volume'
+                   .drop(['high', 'low', 'close', 'high', 'low'], axis=1).dropna())   # , 'volume'
 
         r = df_data.returns.copy()
         if self.normalize:
