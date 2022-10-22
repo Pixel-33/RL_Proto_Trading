@@ -91,11 +91,18 @@ class DataSource:
         data = df.copy()
         for column in data.columns:
             is_in = 0
-            for data_column in ['close', 'volume', 'low', 'high']:
+            for data_column in ['close', 'low', 'high']:    # 'volume'
                 if column == data_column:
                     is_in = 1
             if is_in == 0:
                 data = data.drop([column], axis=1)
+
+        # HEURE #####################
+        if config.INTERVAL == '1h':
+            # Calcul high_day, low_day, close_day
+            data['high_day'] = data.high.rolling(24).max()
+            data['low_day'] = data.low.rolling(24).min()
+            data['close_day'] = data['close'].shift(periods=23)
 
         return data
 
@@ -109,19 +116,21 @@ class DataSource:
         """calculate returns and percentiles, then removes missing values"""
 
         df_data['returns'] = df_data.close.pct_change()
-        df_data['ret_2'] = df_data.close.pct_change(2)
-        df_data['ret_5'] = df_data.close.pct_change(5)
-        df_data['ret_10'] = df_data.close.pct_change(10)
-        df_data['ret_21'] = df_data.close.pct_change(21)
-        df_data['rsi'] = talib.STOCHRSI(df_data.close)[1]
-        df_data['macd'] = talib.MACD(df_data.close)[1]
-        df_data['atr'] = talib.ATR(df_data.high, df_data.low, df_data.close)
+        df_data['ret_2'] = df_data.close.pct_change(2)      # (2)
+        df_data['ret_5'] = df_data.close.pct_change(4)     # (5)
+        df_data['ret_10'] = df_data.close.pct_change(10)    # (10)
+        df_data['ret_21'] = df_data.close.pct_change(21)    # (21)
 
-        slowk, slowd = talib.STOCH(df_data.high, df_data.low, df_data.close)
+        df_data['rsi'] = talib.STOCHRSI(df_data.close_day)[1]
+        df_data['macd'] = talib.MACD(df_data.close_day)[1]
+        df_data['atr'] = talib.ATR(df_data.high_day, df_data.low_day, df_data.close_day)
+
+        slowk, slowd = talib.STOCH(df_data.high_day, df_data.low_day, df_data.close_day)
         df_data['stoch'] = slowd - slowk
-        df_data['atr'] = talib.ATR(df_data.high, df_data.low, df_data.close)
-        df_data['ultosc'] = talib.ULTOSC(df_data.high, df_data.low, df_data.close)
-        df_data = (df_data.replace((np.inf, -np.inf), np.nan).drop(['high', 'low', 'close', 'volume'], axis=1).dropna())
+        # df_data['atr'] = talib.ATR(df_data.high, df_data.low, df_data.close)
+        df_data['ultosc'] = talib.ULTOSC(df_data.high_day, df_data.low_day, df_data.close_day)
+        df_data = (df_data.replace((np.inf, -np.inf), np.nan)
+                   .drop(['high', 'low', 'close', 'high_day', 'low_day', 'close_day'], axis=1).dropna())   # , 'volume'
 
         r = df_data.returns.copy()
         if self.normalize:

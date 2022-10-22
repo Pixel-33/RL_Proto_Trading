@@ -130,7 +130,7 @@ def run_rl_trading(lst_symbols, start_date, interval, ddqn_backup=False):
 
     # ### Experience Replay
     replay_capacity = int(1e6)
-    batch_size = 4096
+    batch_size = config.BATCH_SIZE
 
     # ### $\epsilon$-greedy Policy
     epsilon_start = 1.0
@@ -229,7 +229,7 @@ def run_rl_trading(lst_symbols, start_date, interval, ddqn_backup=False):
         market_nav = final.market_nav
         market_navs.append(market_nav)
 
-        # track difference between agent an market NAV results
+        # track difference between agent and market NAV results
         diff = nav - market_nav
         diffs.append(diff)
 

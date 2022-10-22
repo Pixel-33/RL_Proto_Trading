@@ -50,7 +50,7 @@ def record(ds, dir_data, start_date, interval):
         df = pd.read_json(response_json["result"][symbol]["info"])
 
         # pour vérifier les dates au format datetime de pandas
-        df['index'] = pd.to_datetime(df.index, unit='h', origin=pd.Timestamp(start_date))
+        # df['index'] = pd.to_datetime(df.index, unit='h', origin=pd.Timestamp(start_date))
         df.dropna(inplace=True)
         df.reset_index(drop=True, inplace=True)
 

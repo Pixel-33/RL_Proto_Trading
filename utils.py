@@ -53,12 +53,12 @@ def fdp_request(params, multithreading = True):
             url = url + "&end=" + end
         url = url + "&symbol=" #  + symbol
     else:
-        return {"status":"ko", "info":"unknown service"}
+        return {"status": "ko", "info": "unknown service"}
 
     if not multithreading:
         final_result = _atomic_fdp_request(fdp_url+url+symbol)
     else:
-        final_result = {"status":"ok", "result":{}}
+        final_result = {"status": "ok", "result": {}}
         with concurrent.futures.ThreadPoolExecutor() as executor:
             futures = {executor.submit(_atomic_fdp_request, fdp_url+url+current_symbol): current_symbol for current_symbol in symbol.split(',')}
             for future in concurrent.futures.as_completed(futures):

@@ -15,6 +15,8 @@ FDP_URL = 'https://fdp-ifxcxetwza-uc.a.run.app/'
 
 # DDQN Agent
 TRADING_DAYS = 250
-MAX_EPISODES = 20
+MAX_EPISODES = 100
 TRADING_COST_BPS = 1e-3
 TIME_COST_BPS = 1e-4
+
+BATCH_SIZE = 4096
